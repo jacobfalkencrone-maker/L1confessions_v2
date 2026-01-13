@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="da">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
+    <title>L1 Confessions</title>
+
+    <!-- Tailwind (CDN) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- React 18 UMD -->
+    <script
+      crossorigin
+      src="https://unpkg.com/react@18/umd/react.production.min.js"
+    ></script>
+    <script
+      crossorigin
+      src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"
+    ></script>
+
+    <!-- Babel (for JSX in-browser) -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <style>
+      /* Base */
+      body {
+        background-color: #020617;
+        color: white;
+        -webkit-tap-highlight-color: transparent;
+      }
+
+      /* 3D flip helpers */
+      .perspective-1000 {
+        perspective: 1000px;
+      }
+      .transform-style-3d {
+        transform-style: preserve-3d;
+      }
+      .backface-hidden {
+        backface-visibility: hidden;
+      }
+      .rotate-y-180 {
+        transform: rotateY(180deg);
+      }
+
+      /* Scrollbar */
+      .scrollbar-thin::-webkit-scrollbar {
+        width: 4px;
+      }
+      .scrollbar-thin::-webkit-scrollbar-track {
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 4px;
+      }
+      .scrollbar-thin::-webkit-scrollbar-thumb {
+        background: rgba(99, 102, 241, 0.5);
+        border-radius: 4px;
+      }
+
+      /* Marquee */
+      @keyframes marquee {
+        0% {
+          transform: translateX(100%);
+        }
+        100% {
+          transform: translateX(-100%);
+        }
+      }
+      .animate-marquee {
+        animation: marquee 15s linear infinite;
+      }
+
+      /* Minimal replacements for tailwindcss-animate classes used in your markup */
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+        }
+        to {
+          opacity: 1;
+        }
+      }
+      @keyframes zoomIn {
+        from {
+          opacity: 0;
+          transform: scale(0.98);
+        }
+        to {
+          opacity: 1;
+          transform: scale(1);
+        }
+      }
+      @keyframes zoomIn95 {
+        from {
+          opacity: 0;
+          transform: scale(0.95);
+        }
+        to {
+          opacity: 1;
+          transform: scale(1);
+        }
+      }
+      @keyframes slideInFromBottom4 {
+        from {
+          opacity: 0;
+          transform: translateY(1rem);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      @keyframes slideInFromBottom4ZoomIn95 {
+        from {
+          opacity: 0;
+          transform: translateY(1rem) scale(0.95);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0) scale(1);
+        }
+      }
+
+      .animate-in {
+        animation-fill-mode: both;
+        animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+      }
+      .fade-in {
+        animation-name: fadeIn;
+      }
+      .zoom-in {
+        animation-name: zoomIn; /* includes fade */
+      }
+      .zoom-in-95 {
+        animation-name: zoomIn95; /* includes fade */
+      }
+      .slide-in-from-bottom-4 {
+        animation-name: slideInFromBottom4;
+      }
+      .slide-in-from-bottom-4.zoom-in-95 {
+        animation-name: slideInFromBottom4ZoomIn95;
+      }
+      .fade-in.zoom-in {
+        animation-name: zoomIn;
+      }
+      .fade-in.zoom-in-95 {
+        animation-name: zoomIn95;
+      }
+
+      /* Let Tailwind duration utilities also drive animation duration */
+      .duration-200 {
+        animation-duration: 200ms;
+      }
+      .duration-300 {
+        animation-duration: 300ms;
+      }
+      .duration-500 {
+        animation-duration: 500ms;
+      }
+      .duration-700 {
+        animation-duration: 700ms;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div id="root"></div>
+
+    <script type="text/babel" data-presets="env,react">
+      const { useState, useEffect } = React;
+
+      // --- ICON COMPONENTS (Inline SVGs to make it dependency-free) ---
+      const Icon = ({ path, className }) => (
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className={className}
+        >
+          {path}
+        </svg>
+      );
+
+      const Icons = {
+        Music: (props) => (
+          <Icon
+            {...props}
+            path={
+              <>
+                <path d="M9 18V5l12-2v13" />
+                <circle cx="6" cy="18" r="3" />
+                <circle cx="18" cy="16" r="3" />
+              </>
+            }
+          />
+        ),
+        Lightbulb: (props) => (
+          <Icon
+            {...props}
+            path={
+              <>
+                <path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-1 1.5-2 1.5-3.5 0-2.2-1.8-4-4-4-2.2 0-4 1.8-4 4 0 1.5.5 2.5 1.5 3.5.8.8 1.3 1.5 1.5 2.5" />
+                <path d="M9 18h6" />
+                <path d="M10 22h4" />
+              </>
+            }
+          />
+        ),
+        Heart: (props) => (
+          <Icon
+            {...props}
+            path={
+              <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
+            }
+          />
+        ),
+        RotateCcw: (props) => (
+          <Icon
+            {...props}
+            path={
+              <>
+                <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 12" />
+                <path d="M3 3v9h9" />
+              </>
+            }
+          />
+        ),
+        Stars: (props) => (
+          <Icon
+            {...props}
+            path={
+              <>
+                <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z" />
+                <path d="M5 3v4" />
+                <path d="M9 3v4" />
+                <path d="M7 5h4" />
+                <path d="M3 7h4" />
+              </>
+            }
+          />
+        ),
+        Lock: (props) => (
+          <Icon
+            {...props}
+            path={
+              <>
+                <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
+                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+              </>
+            }
+          />
+        ),
+        X: (props) => (
+          <Icon
+            {...props}
+            path={
+              <>
+                <path d="M18 6 6 18" />
+                <path d="m6 6 18 18" />
+              </>
+            }
+          />
+        ),
+        Check: (props) => <Icon {...props} path={<path d="M20 6 9 17l-5-5" />} />,
+        Fingerprint: (props) => (
+          <Icon
+            {...props}
+            path={
+              <>
+                <path d="M2 12C2 6.5 6.5 2 12 2a10 10 0 0 1 8 4" />
+                <path d="M5 19.5C5.5 18 6 15 6 12a6 6 0 0 1 .34-2" />
+                <path d="M17.29 21.02c.12-.6.43-2.3.5-3.02" />
+                <path d="M12 10a2 2 0 0 0-2 2c0 5 3 9 5.5 9.5z" />
+                <path d="M8.6 15c-.1 1.4.2 2.9 1.09 4.3" />
+                <path d="M9 13c.24-1.18 1-2 2-2H12a7 7 0 0 1 7 7c0 2.22-1.12 3.8-1.5 4.5" />
+              </>
+            }
+          />
+        ),
+        Sparkles: (props) => (
+          <Icon
+            {...props}
+            path={
+              <>
+                <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z" />
+                <path d="M5 3v4" />
+              </>
+            }
+          />
+        ),
+        MessageCircle: (props) => (
+          <Icon {...props} path={<path d="m3 21 1.9-5.7a8.5 8.5 0 1 1 3.8 3.8z" />} />
+        ),
+        ArrowRight: (props) => (
+          <Icon
+            {...props}
+            path={
+              <>
+                <path d="M5 12h14" />
+                <path d="m12 5 7 7-7 7" />
+              </>
+            }
+          />
+        ),
+        LogOut: (props) => (
+          <Icon
+            {...props}
+            path={
+              <>
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                <polyline points="16 17 21 12 16 7" />
+                <line x1="21" x2="9" y1="12" y2="12" />
+              </>
+            }
+          />
+        ),
+        AlertTriangle: (props) => (
+          <Icon
+            {...props}
+            path={
+              <>
+                <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
+                <path d="M12 9v4" />
+                <path d="M12 17h.01" />
+              </>
+            }
+          />
+        ),
+      };
+
+      const L1Confessions = () => {
+        const [hasEntered, setHasEntered] = useState(false);
+        const [activeCard, setActiveCard] = useState(null);
+        const [isFlipped, setIsFlipped] = useState(false);
+        const [showHoroscope, setShowHoroscope] = useState(false);
+        const [dailyHoroscope, setDailyHoroscope] = useState("");
+        const [showJacobMsg, setShowJacobMsg] = useState(false);
+        const [jacobMsg, setJacobMsg] = useState("");
+
+        const [readCards, setReadCards] = useState(() => {
+          const saved = localStorage.getItem("readCards_v14");
+          return saved ? JSON.parse(saved) : [];
+        });
+
+        useEffect(() => {
+          localStorage.setItem("readCards_v14", JSON.stringify(readCards));
+        }, [readCards]);
+
+        const handleCardClick = (card) => {
+          setActiveCard(card);
+          setIsFlipped(false);
+        };
+
+        const handleFlip = () => {
+          setIsFlipped(!isFlipped);
+          if (activeCard && !readCards.includes(activeCard.day)) {
+            setReadCards([...readCards, activeCard.day]);
+          }
+        };
+
+        const closeCard = (e) => {
+          e.stopPropagation();
+          setActiveCard(null);
+          setIsFlipped(false);
+        };
+
+        const resetSystem = () => {
+          if (window.confirm("⚠️ SYSTEM ADVARSEL: Dette sletter alle logs. Bekræft?")) {
+            setReadCards([]);
+            setActiveCard(null);
+            // safer than localStorage.clear()
+            localStorage.removeItem("readCards_v14");
+          }
+        };
+
+        const horoscopes = [
+          "Stjernerne står i 'Ro & Fred' konstellation i dag. Nyd stilheden. 🌌",
+          "Mars er intens, men din Løve sender beroligende frekvenser. Træk vejret. 🦁",
+          "Dagens prognose: 100% chance for savn, men opklaring forude. ❤️",
+          "Universet anbefaler: Hættetrøje, comfort food og ingen store beslutninger. 🍝",
+          "Din intuition er skarp i dag. Stol på den. (Og på Løven). ✨",
+          "Advarsel: Risiko for dagdrømmeri midt i arbejdstiden. Copilot ser alt. 🤖",
+          "En god dag til at trække 'Citron-kortet' 🍋 hvis verden larmer for meget.",
+          "Kærlighedsplaneten står i zenit. Men husk: Langsomt er også en fart. 🐢",
+          "Du vil modtage et mentalt kram fra en Løve inden for de næste 4 timer. 🤗",
+          "Stjernerne siger: Du er præcis, hvor du skal være. Ingen panik. 🧘‍♀️",
+        ];
+
+        const generateHoroscope = () => {
+          const today = new Date().getDate();
+          const index = today % horoscopes.length;
+          setDailyHoroscope(horoscopes[index]);
+          setShowHoroscope(true);
+        };
+
+        const jacobMessages = [
+          "Ok EMIM… JACF havde ellers besluttet sig for at være et voksent menneske i dag.\nHolde ro. Trække vejret. Lade være med at skrive.\nMEN Copilot flaggede ‘forhøjet overanalyse-risiko i JACF x EMIM-projektet’.\nSå her er jeg. Ansvarligt. Data-drevet. 🙄🐏🦁",
+          "Jeg sad og kiggede på screeneren igen og kom i tvivl:\ner det meningen, at den skal være så skarp…\neller er det bare fordi alt JACF x EMIM-relateret bliver 20% bedre end gennemsnittet? 😬",
+          "Hej EMIM.\nPlanen var én sætning.\nSå kom en ekstra tanke.\nOg så en mere.\nOg pludselig var det her endnu en JACF classic.\nJeg stopper nu. Seriøst.\n…det gjorde jeg ikke.",
+          "Status på JACF x EMIM:\n– Screener: stabil\n– Intensitet: under kontrol-ish\n– Selvdisciplin: i træning\nVi kalder det ‘progress, not perfection’ 😬🦁",
+          "L1 detox-update: JACF er stadig i live.\nSavner dog helt almindelige EMIM-ting: bolo, popcorn, ligegyldige diskussioner og din energi i rummet.\nIngen deadlines. Ingen drama. Bare god kemi. 🙄🐏🦁",
+        ];
+
+        const generateJacobMsg = () => {
+          const index = Math.floor(Math.random() * jacobMessages.length);
+          setJacobMsg(jacobMessages[index]);
+          setShowJacobMsg(true);
+        };
+
+        const cards = [
+          { day: 1, track: "Justin Bieber – Ghost", fact: "Jeg har en tendens til at skrive “kort” og ende i roman-format. Diagnose.", tanke: "L1 detox starter nu. Mindre mødelokale, mere almindelighed." },
+          { day: 2, track: "Blue – If You Come Back", fact: "Jeg har en meget simpel smag. Det behøver ikke være fancy for at være godt.", tanke: "Bolo, hættetrøjer og ro slår det meste." },
+          { day: 3, track: "Ne-Yo – So Sick", fact: "Jeg kan stadig blive genert, hvis nogen holder øjenkontakt længe nok.", tanke: "Og ja… dine øjne. Wow. De får mig lidt til at føle mig som en flue mod et lys." },
+          { day: 4, track: "Usher – Nice & Slow", fact: "Jeg har en svaghed for mennesker, der er gode ved andre, også når ingen kigger.", tanke: "Det er en af dine bedste sider. Måske den bedste." },
+          { day: 5, track: "Nelly – Just a Dream", fact: "Jeg elsker roadtrip-tanker og dum musik i bilen mere end jeg vil indrømme.", tanke: "Hjemmesko, bolo, popcorn og en kedelig tirsdag. Det er faktisk et mål." },
+          { day: 6, track: "Backstreet Boys – Shape of My Heart", fact: "Jeg er bedre til disciplin end til tålmodighed (jeg øver mig).", tanke: "Du gør mig både tryg og glad." },
+          { day: 7, track: "Drake – Passionfruit", fact: "Når jeg er presset, bliver jeg enten meget stille eller meget snakkende. Ofte nr. 2 😬", tanke: "Din humor, din ironi og din lethed. Det redder dagen." },
+          { day: 8, track: "Chris Brown – With You", fact: "Jeg kan blive alt for investeret i små interne jokes.", tanke: "Copilot siger “hold ro” – Copilot får sin vilje i dag 🙄✅" },
+          { day: 9, track: "Kanye West – Flashing Lights", fact: "Jeg elsker ligegyldige diskussioner (bolo-opskrifter, popcorn, kongehuset) alt for meget.", tanke: "Jeg savner vores “random emner”-mode." },
+          { day: 10, track: "The Weeknd – Die For You", fact: "Jeg er dårligere til at give slip end til at holde fast.", tanke: "Nogle mennesker gør bare noget ved én. Punktum." },
+          { day: 11, track: "Drake – Hold On, We’re Going Home", fact: "Jeg har det bedst, når ting får lov til at tage den tid, de tager.", tanke: "En lille hilsen fra barselsboblen. Stadig her." },
+          { day: 12, track: "Justin Bieber – Company", fact: "Jeg er ikke særlig god til overfladiskhed. Jeg foretrækker ægte samtaler.", tanke: "Det er nemt at være sig selv sammen med dig." },
+          { day: 13, track: "The Weeknd – Earned It", fact: "Jeg vil hellere have det virkelige end glansbilledet. Hver gang.", tanke: "Jeg kan lide vores almindelighed sammen. Det føles ikke som et spil." },
+          { day: 14, track: "Usher – U Remind Me", fact: "Jeg glemmer ikke nemt mennesker, der betyder noget for mig.", tanke: "Bare så du ved det." },
+          { day: 15, track: "Kanye West – Good Life", fact: "“Langsomt” er ikke et nederlag. Det er en strategi.", tanke: "Horoskopet siger “genforening”. Jeg siger: vi tager den roligt 🙂" },
+        ];
+
+        if (!hasEntered) {
+          return (
+            <div className="min-h-screen bg-slate-950 text-slate-100 font-mono p-6 flex flex-col items-center justify-center relative overflow-hidden">
+              <div className="fixed inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-20 animate-pulse"></div>
+              <div className="fixed top-0 left-0 w-full h-full bg-gradient-to-br from-indigo-900/30 to-slate-950 pointer-events-none"></div>
+
+              <div className="relative z-10 text-center max-w-md w-full animate-in fade-in zoom-in duration-700 pb-12">
+                <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-indigo-200 via-white to-purple-200 mb-2 drop-shadow-2xl">
+                  The L1<br />Confessions
+                </h1>
+                <div className="w-24 h-1 bg-gradient-to-r from-transparent via-indigo-500 to-transparent mx-auto mb-10"></div>
+                <div className="space-y-6 mb-16">
+                  <p className="text-sm font-mono tracking-[0.3em] text-slate-400 uppercase">
+                    JACF <span className="text-purple-500 mx-2">×</span> EMIM
+                  </p>
+                  <div className="flex justify-center items-center gap-8 text-6xl md:text-7xl filter drop-shadow-lg">
+                    <span className="transform hover:scale-110 transition-transform duration-300 cursor-default">🦁</span>
+                    <span className="text-2xl text-purple-500/50 animate-pulse">×</span>
+                    <span className="transform hover:scale-110 transition-transform duration-300 cursor-default">🐏</span>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setHasEntered(true)}
+                  className="group relative inline-flex items-center gap-3 px-8 py-4 bg-slate-900 border border-indigo-500/50 rounded-full text-indigo-100 hover:bg-indigo-900/30 hover:border-indigo-400 hover:text-white transition-all duration-300 shadow-[0_0_20px_rgba(99,102,241,0.2)] hover:shadow-[0_0_30px_rgba(99,102,241,0.4)]"
+                >
+                  <span className="text-sm font-bold tracking-widest uppercase">Enter meeting room</span>
+                  <Icons.ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                  <div className="absolute inset-0 rounded-full bg-indigo-400/10 blur-md opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                </button>
+                <div className="absolute bottom-[-80px] w-full text-center opacity-30 text-[9px] font-mono tracking-widest">
+                  SECURE CHANNEL ESTABLISHED
+                </div>
+              </div>
+
+              <div className="absolute bottom-2 w-full left-0 overflow-hidden z-20">
+                <div className="animate-marquee whitespace-nowrap flex items-center gap-4 text-[10px] text-red-400/70 font-mono uppercase tracking-widest">
+                  <Icons.AlertTriangle className="w-3 h-3" />
+                  <span>Watch out for: Mario, Simon, Steen, Sarah, Thai lady, ...</span>
+                  <span className="mx-4 text-slate-600">///</span>
+                  <span>Keep clear of L1 glass doors</span>
+                  <span className="mx-4 text-slate-600">///</span>
+                  <Icons.AlertTriangle className="w-3 h-3" />
+                  <span>Watch out for: Mario, Simon, Steen, Sarah, Thai lady, ...</span>
+                </div>
+              </div>
+            </div>
+          );
+        }
+
+        return (
+          <div className="min-h-screen bg-slate-950 text-slate-100 font-mono p-4 pb-20 selection:bg-purple-500 selection:text-white overflow-hidden relative animate-in fade-in duration-500">
+            <div
+              className="fixed inset-0 z-0 opacity-20 pointer-events-none"
+              style={{
+                backgroundImage: "radial-gradient(circle, #ffffff 1px, transparent 1px)",
+                backgroundSize: "40px 40px",
+              }}
+            ></div>
+            <div className="fixed top-0 left-0 w-full h-64 bg-indigo-900/20 blur-3xl pointer-events-none"></div>
+
+            <div className="max-w-md mx-auto relative z-10">
+              <header className="text-center mb-6 pt-12 relative">
+                <button
+                  onClick={() => setHasEntered(false)}
+                  className="absolute top-0 left-2 p-2 flex items-center gap-2 text-[10px] font-mono text-slate-500 hover:text-red-400 transition-colors group"
+                >
+                  <Icons.LogOut className="w-3 h-3 group-hover:-translate-x-1 transition-transform" /> EXIT L1
+                </button>
+
+                <div className="flex justify-center items-center gap-6 mb-3 text-yellow-400 animate-pulse mt-4">
+                  <span className="text-4xl filter drop-shadow-lg transform -scale-x-100">🦁</span>
+                  <Icons.Fingerprint className="w-8 h-8 text-purple-400" />
+                  <span className="text-4xl filter drop-shadow-lg">🐏</span>
+                </div>
+
+                <h1 className="text-3xl font-bold tracking-[0.15em] text-transparent bg-clip-text bg-gradient-to-r from-indigo-300 via-white to-purple-200 uppercase inline-block border-b-2 border-white/10 pb-4">
+                  L1 Confessions
+                </h1>
+
+                <div className="flex flex-col gap-3 mt-6 px-4">
+                  <button
+                    onClick={generateJacobMsg}
+                    className="group flex items-center justify-between px-4 py-3 bg-slate-900/50 rounded-lg border border-indigo-500/30 hover:bg-indigo-900/40 hover:border-purple-400 transition-all shadow-lg active:scale-95"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="p-1.5 bg-purple-500/20 rounded-md text-purple-300 group-hover:text-white group-hover:bg-purple-500 transition-colors">
+                        <Icons.MessageCircle className="w-4 h-4" />
+                      </div>
+                      <div className="text-left">
+                        <span className="block text-[10px] text-slate-400 font-mono tracking-widest uppercase opacity-70">
+                          System Action
+                        </span>
+                        <span className="block text-xs font-bold text-slate-200 group-hover:text-white">GENERATE JACF CLASSIC</span>
+                      </div>
+                    </div>
+                    <div className="text-slate-500 group-hover:text-purple-300">→</div>
+                  </button>
+
+                  <button
+                    onClick={generateHoroscope}
+                    className="group flex items-center justify-between px-4 py-3 bg-slate-900/50 rounded-lg border border-indigo-500/30 hover:bg-indigo-900/40 hover:border-yellow-400 transition-all shadow-lg active:scale-95"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="p-1.5 bg-yellow-500/20 rounded-md text-yellow-300 group-hover:text-slate-900 group-hover:bg-yellow-400 transition-colors">
+                        <Icons.Sparkles className="w-4 h-4" />
+                      </div>
+                      <div className="text-left">
+                        <span className="block text-[10px] text-slate-400 font-mono tracking-widest uppercase opacity-70">
+                          Astro Data
+                        </span>
+                        <span className="block text-xs font-bold text-slate-200 group-hover:text-white">DAILY HOROSCOPE</span>
+                      </div>
+                    </div>
+                    <div className="text-slate-500 group-hover:text-yellow-300">→</div>
+                  </button>
+                </div>
+              </header>
+
+              <div className="bg-slate-900/80 border border-slate-700/50 p-5 rounded-xl mb-8 text-sm text-center backdrop-blur-md shadow-xl relative overflow-hidden group">
+                <div className="absolute top-0 left-0 w-1 h-full bg-yellow-500"></div>
+                <div className="mb-3 font-mono text-xs flex flex-col items-center justify-center gap-1">
+                  <div className="flex items-center gap-2 text-yellow-500 tracking-widest">
+                    <Icons.Lock className="w-3 h-3" /> SECURITY PROTOCOL
+                  </div>
+                  <div className="text-[10px] text-green-400 tracking-wider bg-green-900/20 px-2 py-0.5 rounded border border-green-500/30">
+                    ● COPILOT APPROVED
+                  </div>
+                </div>
+                <ul className="text-slate-300 space-y-2 text-xs text-left pl-4">
+                  <li className="flex items-start gap-2">
+                    <span className="text-purple-400">01.</span> Åbn kun én fil om dagen.
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-purple-400">02.</span> Audio skal afspilles min. 30s.
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-purple-400">03.</span> Ingen svarpligt. Kun modtagepligt.
+                  </li>
+                </ul>
+              </div>
+
+              <div className="grid grid-cols-3 gap-4 px-2">
+                {cards.map((card) => {
+                  const isRead = readCards.includes(card.day);
+                  return (
+                    <button
+                      key={card.day}
+                      onClick={() => handleCardClick(card)}
+                      className={`aspect-[3/4] relative rounded-xl transition-all duration-300 transform hover:scale-105 active:scale-95 flex flex-col items-center justify-center shadow-lg border group ${
+                        isRead
+                          ? "bg-indigo-900/20 border-indigo-500/50 text-indigo-200"
+                          : "bg-slate-800 border-slate-700 text-slate-400 hover:border-yellow-400/50 hover:text-yellow-100"
+                      }`}
+                    >
+                      <div className="absolute top-2 left-2 text-[6px] font-mono opacity-30">
+                        CONF_{card.day.toString().padStart(2, "0")}
+                      </div>
+                      <span className="text-2xl font-bold font-serif mb-1">{card.day}</span>
+                      {isRead ? (
+                        <Icons.Check className="w-4 h-4 text-green-400" />
+                      ) : (
+                        <Icons.Lock className="w-3 h-3 opacity-50 group-hover:text-yellow-400 transition-colors" />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {showHoroscope && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/95 backdrop-blur-md animate-in fade-in duration-300">
+                  <div className="absolute inset-0" onClick={() => setShowHoroscope(false)}></div>
+                  <div className="relative w-full max-w-sm bg-slate-900 border border-yellow-500/30 rounded-2xl p-8 text-center shadow-[0_0_50px_rgba(253,224,71,0.1)] transform animate-in slide-in-from-bottom-4 zoom-in-95 duration-300">
+                    <div className="mb-4 flex justify-center">
+                      <Icons.Stars className="w-12 h-12 text-yellow-400 animate-pulse" />
+                    </div>
+                    <h3 className="text-xl font-serif text-transparent bg-clip-text bg-gradient-to-r from-yellow-200 to-yellow-500 mb-2">
+                      ARIES DAILY
+                    </h3>
+                    <div className="w-12 h-0.5 bg-indigo-500 mx-auto mb-6"></div>
+                    <p className="text-slate-200 italic leading-relaxed text-lg mb-8">"{dailyHoroscope}"</p>
+                    <button
+                      onClick={() => setShowHoroscope(false)}
+                      className="px-6 py-2 bg-slate-800 hover:bg-slate-700 rounded-full text-xs tracking-widest text-slate-400 transition-colors"
+                    >
+                      CLOSE TRANSMISSION
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {showJacobMsg && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/95 backdrop-blur-md animate-in fade-in duration-300">
+                  <div className="absolute inset-0" onClick={() => setShowJacobMsg(false)}></div>
+                  <div className="relative w-full max-w-sm bg-slate-900 border border-purple-500/30 rounded-2xl p-6 text-left shadow-[0_0_50px_rgba(168,85,247,0.15)] transform animate-in slide-in-from-bottom-4 zoom-in-95 duration-300">
+                    <div className="flex items-center gap-3 border-b border-purple-500/20 pb-4 mb-4">
+                      <div className="w-10 h-10 bg-purple-500/20 rounded-full flex items-center justify-center border border-purple-500/40">
+                        <span className="text-xl">🦁</span>
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-bold text-purple-200">JACF [Lion]</h3>
+                        <p className="text-[10px] text-slate-400 font-mono">STATUS: OVERTHINKING</p>
+                      </div>
+                    </div>
+                    <div className="bg-slate-950/50 p-4 rounded-xl border border-slate-700/50 mb-6 max-h-[60vh] overflow-y-auto">
+                      <p className="text-slate-200 leading-relaxed whitespace-pre-wrap font-sans text-sm">{jacobMsg}</p>
+                    </div>
+                    <div className="text-center">
+                      <button
+                        onClick={() => setShowJacobMsg(false)}
+                        className="flex items-center justify-center gap-2 mx-auto px-6 py-2 bg-purple-900/30 hover:bg-purple-900/50 border border-purple-500/30 rounded-full text-xs tracking-widest text-purple-200 transition-colors"
+                      >
+                        <Icons.Check className="w-3 h-3" /> MARK AS READ
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {activeCard && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/95 backdrop-blur-md animate-in fade-in duration-200">
+                  <div className="absolute inset-0" onClick={closeCard}></div>
+                  <div className="relative w-full max-w-sm aspect-[3/4] perspective-1000 cursor-pointer group" onClick={handleFlip}>
+                    <div className={`relative w-full h-full transition-all duration-700 transform-style-3d ${isFlipped ? "rotate-y-180" : ""}`}>
+                      <div className="absolute w-full h-full backface-hidden bg-gradient-to-br from-slate-800 to-slate-900 border-2 border-slate-600 rounded-2xl flex flex-col items-center justify-center shadow-2xl overflow-hidden">
+                        <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-20"></div>
+                        <div className={`flex flex-col items-center justify-center w-full h-full transition-opacity duration-300 ${isFlipped ? "opacity-0" : "opacity-100"}`}>
+                          <span className="text-8xl font-bold text-slate-700/50 font-serif z-10">{activeCard.day}</span>
+
+                          {!readCards.includes(activeCard.day) ? (
+                            <div className="mt-8 px-4 py-2 bg-slate-800 rounded-full border border-slate-700 flex items-center gap-2 z-10">
+                              <Icons.Fingerprint className="w-4 h-4 text-yellow-500 animate-pulse" />
+                              <span className="text-xs text-slate-300 font-mono tracking-wider uppercase">Tap to Decrypt</span>
+                            </div>
+                          ) : (
+                            <div className="mt-8 px-4 py-2 bg-slate-800/50 rounded-full border border-slate-700/30 flex items-center gap-2 z-10 opacity-70">
+                              <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                              <span className="text-xs text-slate-400 font-mono tracking-wider uppercase">Log Unlocked</span>
+                            </div>
+                          )}
+                        </div>
+
+                        <button
+                          onClick={closeCard}
+                          className={`absolute top-4 right-4 p-2 bg-slate-800/80 rounded-full text-slate-400 hover:text-white z-20 transition-opacity duration-300 ${isFlipped ? "opacity-0" : "opacity-100"}`}
+                        >
+                          <Icons.X className="w-6 h-6" />
+                        </button>
+                      </div>
+
+                      <div className="absolute w-full h-full backface-hidden rotate-y-180 bg-slate-900 border-2 border-indigo-500/30 rounded-2xl p-6 flex flex-col shadow-2xl shadow-purple-900/30 overflow-hidden">
+                        <div className="absolute top-0 left-0 w-16 h-16 border-t-2 border-l-2 border-indigo-500/20 rounded-tl-2xl pointer-events-none"></div>
+                        <div className="absolute bottom-0 right-0 w-16 h-16 border-b-2 border-r-2 border-indigo-500/20 rounded-br-2xl pointer-events-none"></div>
+
+                        <div className="flex justify-between items-start mb-6 border-b border-white/5 pb-4 relative z-10">
+                          <div>
+                            <h2 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-indigo-300 to-white">
+                              CONF_{activeCard.day.toString().padStart(2, "0")}
+                            </h2>
+                            <span className="text-[10px] text-green-500 font-mono tracking-widest">● DECRYPTED</span>
+                          </div>
+                          <button onClick={closeCard} className="p-1 bg-slate-800/50 rounded-full text-slate-400 hover:text-white">
+                            <Icons.X className="w-5 h-5" />
+                          </button>
+                        </div>
+
+                        <div className="flex-1 overflow-y-auto space-y-6 relative z-10 pr-2 scrollbar-thin">
+                          <div className="bg-indigo-950/30 p-4 rounded-xl border border-indigo-500/20">
+                            <div className="flex items-center gap-2 text-indigo-300 mb-2 font-bold uppercase tracking-wider text-[10px]">
+                              <Icons.Music className="w-3 h-3" /> Audio Track
+                            </div>
+                            <div className="text-lg text-white font-medium leading-tight">{activeCard.track.split("–")[0]}</div>
+                            <div className="text-sm text-slate-400 mt-1">{activeCard.track.split("–")[1]}</div>
+                          </div>
+
+                          <div>
+                            <div className="flex items-center gap-2 text-yellow-500 mb-2 font-bold uppercase tracking-wider text-[10px]">
+                              <Icons.Lightbulb className="w-3 h-3" /> Data Point
+                            </div>
+                            <div className="text-base text-slate-200 italic leading-relaxed pl-2 border-l-2 border-slate-700">
+                              "{activeCard.fact}"
+                            </div>
+                          </div>
+
+                          <div className="bg-yellow-500/5 p-4 rounded-xl border border-yellow-500/20">
+                            <div className="flex items-center gap-2 text-yellow-200 mb-2 font-bold uppercase tracking-wider text-[10px]">
+                              <Icons.Heart className="w-3 h-3" /> Message
+                            </div>
+                            <div className="text-base text-white font-light leading-relaxed">{activeCard.tanke}</div>
+                          </div>
+                        </div>
+
+                        <div className="mt-4 pt-2 text-center z-10 border-t border-white/5">
+                          <p className="text-[8px] text-slate-700 font-mono uppercase tracking-[0.2em]">End of Confession</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="mt-16 text-center pb-8">
+                <button
+                  onClick={resetSystem}
+                  className="text-[10px] text-slate-700 hover:text-red-400 transition-colors flex items-center justify-center gap-2 mx-auto uppercase tracking-wider font-mono"
+                >
+                  <Icons.RotateCcw className="w-3 h-3" /> Clear Cache
+                </button>
+                <div className="mt-8 space-y-1">
+                  <p className="text-[10px] text-slate-600 font-mono uppercase">
+                    Encrypted Channel<br />🦁 LION ⇄ ARIES 🐏
+                  </p>
+                  <p className="text-[8px] text-slate-700 font-mono tracking-widest pt-4 opacity-50">
+                    POWERED BY SAXO<br />APPROVED BY MAZO
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      };
+
+      const root = ReactDOM.createRoot(document.getElementById("root"));
+      root.render(<L1Confessions />);
+    </script>
+  </body>
+</html>
