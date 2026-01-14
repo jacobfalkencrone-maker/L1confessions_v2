@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="da">
   <head>
@@ -170,6 +171,43 @@
     <script type="text/babel" data-presets="env,react">
       const { useState, useEffect } = React;
 
+      // --- NON-REPEATING QUEUE HELPERS (persisted) ---
+      const STORAGE_KEYS = {
+        readCards: "readCards_v14",
+        jacfQueue: "jacfQueue_v1",
+        horoscopeQueue: "horoscopeQueue_v1",
+      };
+
+      function shuffleArray(arr) {
+        const a = arr.slice();
+        for (let i = a.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [a[i], a[j]] = [a[j], a[i]];
+        }
+        return a;
+      }
+
+      function initQueue(storageKey, length) {
+        try {
+          const saved = JSON.parse(localStorage.getItem(storageKey) || "null");
+          if (Array.isArray(saved)) {
+            const cleaned = saved.filter(
+              (n) => Number.isInteger(n) && n >= 0 && n < length
+            );
+            if (cleaned.length) return cleaned;
+          }
+        } catch (_) {}
+        return shuffleArray([...Array(length).keys()]);
+      }
+
+      function nextFromQueue(queue, length) {
+        let q = Array.isArray(queue) ? queue : [];
+        if (q.length === 0) q = shuffleArray([...Array(length).keys()]);
+        const idx = q[0];
+        const rest = q.slice(1);
+        return { idx, rest };
+      }
+
       // --- ICON COMPONENTS (Inline SVGs to make it dependency-free) ---
       const Icon = ({ path, className }) => (
         <svg
@@ -294,7 +332,10 @@
           />
         ),
         MessageCircle: (props) => (
-          <Icon {...props} path={<path d="m3 21 1.9-5.7a8.5 8.5 0 1 1 3.8 3.8z" />} />
+          <Icon
+            {...props}
+            path={<path d="m3 21 1.9-5.7a8.5 8.5 0 1 1 3.8 3.8z" />}
+          />
         ),
         ArrowRight: (props) => (
           <Icon
@@ -343,13 +384,59 @@
         const [jacobMsg, setJacobMsg] = useState("");
 
         const [readCards, setReadCards] = useState(() => {
-          const saved = localStorage.getItem("readCards_v14");
-          return saved ? JSON.parse(saved) : [];
+          try {
+            const saved = localStorage.getItem(STORAGE_KEYS.readCards);
+            return saved ? JSON.parse(saved) : [];
+          } catch (_) {
+            return [];
+          }
         });
 
+        // Your updated arrays
+        const horoscopes = [
+          "Stjernerne står i L1 detox i dag. Nyd stilheden. 🌌",
+          "Mars er intens, fokuser på at genoplade batterierne efter en travl periodemen. Løven sender beroligende frekvenser.",
+          "De næste par uger for Vædderen byder på en balance mellem handlekraft og tålmodighed. ❤️",
+          "Dagens horoskop for Vædderen indikerer en dag med fokuseret energi og ildtegn. Universet anbefaler: Hygge, comfort food og sutsko",
+          "Din intuition er skarp i dag. Stol på den. (Og på Løven). ✨",
+          "Advarsel: Risiko for dagdrømmeri midt i arbejdstiden. Copilot ser alt. 🤖",
+          "En god dag til at trække skrue lidt ned på, hvis verden larmer for meget.",
+          "Din planet står i zenit. Men husk: Langsomt er også en fart. 🐢",
+          "Du vil modtage et mentalt kram fra en Løve inden for de næste 4 timer. 🤗",
+          "Stjernerne siger: Du er præcis, som du skal være. 🧘‍♀️",
+        ];
+
+        const jacobMessages = [
+          "Ok EMIM… JACF havde ellers besluttet sig for at være et voksent menneske i dag.\nHolde ro. Trække vejret. Lade være med at skrive.\nMEN Copilot flaggede ‘forhøjet overanalyse-risiko i JACF x EMIM-projektet’.\nSå her er jeg. Ansvarligt. Data-drevet. 🙄🐏🦁",
+          "Jeg sad og kiggede på screeneren igen og kom i tvivl:\ner det meningen, at den skal være så skarp…\neller er det bare fordi alt JACF x EMIM-relateret bliver 20% bedre end gennemsnittet? 😬",
+          "Hej EMIM.\nPlanen var én sætning.\nSå kom en ekstra tanke.\nOg så en mere.\nOg pludselig var det her endnu en JACF classic.\nJeg stopper nu. Seriøst.\n…det gjorde jeg ikke.",
+          "Status på JACF x EMIM:\n– Screener: stabil\n– Intensitet: under kontrol-ish\n– Selvdisciplin: i træning\nVi kalder det ‘progress, not perfection’ 😬🦁",
+          "L1 detox-update: JACF er stadig i live.\nSavner dog helt almindelige EMIM-ting: bolo, popcorn, ligegyldige diskussioner og din energi i rummet.\nIngen deadlines. Ingen drama. Bare god kemi. 🙄🐏🦁",
+        ];
+
+        // Non-repeating queues
+        const [jacfQueue, setJacfQueue] = useState(() =>
+          initQueue(STORAGE_KEYS.jacfQueue, jacobMessages.length)
+        );
+        const [horoscopeQueue, setHoroscopeQueue] = useState(() =>
+          initQueue(STORAGE_KEYS.horoscopeQueue, horoscopes.length)
+        );
+
+        // Persist read cards + queues
         useEffect(() => {
-          localStorage.setItem("readCards_v14", JSON.stringify(readCards));
+          localStorage.setItem(STORAGE_KEYS.readCards, JSON.stringify(readCards));
         }, [readCards]);
+
+        useEffect(() => {
+          localStorage.setItem(STORAGE_KEYS.jacfQueue, JSON.stringify(jacfQueue));
+        }, [jacfQueue]);
+
+        useEffect(() => {
+          localStorage.setItem(
+            STORAGE_KEYS.horoscopeQueue,
+            JSON.stringify(horoscopeQueue)
+          );
+        }, [horoscopeQueue]);
 
         const handleCardClick = (card) => {
           setActiveCard(card);
@@ -370,64 +457,141 @@
         };
 
         const resetSystem = () => {
-          if (window.confirm("⚠️ SYSTEM ADVARSEL: Dette sletter alle logs. Bekræft?")) {
+          if (
+            window.confirm(
+              "⚠️ SYSTEM ADVARSEL: Dette sletter alle logs. Bekræft?"
+            )
+          ) {
             setReadCards([]);
             setActiveCard(null);
-            // safer than localStorage.clear()
-            localStorage.removeItem("readCards_v14");
+
+            localStorage.removeItem(STORAGE_KEYS.readCards);
+            localStorage.removeItem(STORAGE_KEYS.jacfQueue);
+            localStorage.removeItem(STORAGE_KEYS.horoscopeQueue);
+
+            // restart queues
+            setJacfQueue(initQueue(STORAGE_KEYS.jacfQueue, jacobMessages.length));
+            setHoroscopeQueue(
+              initQueue(STORAGE_KEYS.horoscopeQueue, horoscopes.length)
+            );
           }
         };
 
-        const horoscopes = [
-          "Stjernerne står i 'Ro & Fred' konstellation i dag. Nyd stilheden. 🌌",
-          "Mars er intens, men din Løve sender beroligende frekvenser. Træk vejret. 🦁",
-          "Dagens prognose: 100% chance for savn, men opklaring forude. ❤️",
-          "Dagens horoskop for Vædderen indikerer en dag med fokuseret energi og ildtegn. Universet anbefaler: Hygge, comfort food og sutsko",
-          "Din intuition er skarp i dag. Stol på den. (Og på Løven). ✨",
-          "Advarsel: Risiko for dagdrømmeri midt i arbejdstiden. Copilot ser alt. 🤖",
-          "En god dag til at trække 'Citron-kortet' 🍋 hvis verden larmer for meget.",
-          "Kærlighedsplaneten står i zenit. Men husk: Langsomt er også en fart. 🐢",
-          "Du vil modtage et mentalt kram fra en Løve inden for de næste 4 timer. 🤗",
-          "Stjernerne siger: Du er præcis, hvor du skal være. Ingen panik. 🧘‍♀️",
-        ];
-
+        // ROTATING: no repeats until all are shown, then reshuffle
         const generateHoroscope = () => {
-          const today = new Date().getDate();
-          const index = today % horoscopes.length;
-          setDailyHoroscope(horoscopes[index]);
-          setShowHoroscope(true);
+          setHoroscopeQueue((prev) => {
+            const { idx, rest } = nextFromQueue(prev, horoscopes.length);
+            setDailyHoroscope(horoscopes[idx]);
+            setShowHoroscope(true);
+            return rest;
+          });
         };
 
-        const jacobMessages = [
-          "Ok EMIM… JACF havde ellers besluttet sig for at være et voksent menneske i dag.\nHolde ro. Trække vejret. Lade være med at skrive.\nMEN Copilot flaggede ‘forhøjet overanalyse-risiko i JACF x EMIM-projektet’.\nSå her er jeg. Ansvarligt. Data-drevet. 🙄🐏🦁",
-          "Jeg sad og kiggede på screeneren igen og kom i tvivl:\ner det meningen, at den skal være så skarp…\neller er det bare fordi alt JACF x EMIM-relateret bliver 20% bedre end gennemsnittet? 😬",
-          "Hej EMIM.\nPlanen var én sætning.\nSå kom en ekstra tanke.\nOg så en mere.\nOg pludselig var det her endnu en JACF classic.\nJeg stopper nu. Seriøst.\n…det gjorde jeg ikke.",
-          "Status på JACF x EMIM:\n– Screener: stabil\n– Intensitet: under kontrol-ish\n– Selvdisciplin: i træning\nVi kalder det ‘progress, not perfection’ 😬🦁",
-          "L1 detox-update: JACF er stadig i live.\nSavner dog helt almindelige EMIM-ting: bolo, popcorn, ligegyldige diskussioner og din energi i rummet.\nIngen deadlines. Ingen drama. Bare god kemi. 🙄🐏🦁",
-        ];
-
+        // ROTATING: no repeats until all are shown, then reshuffle
         const generateJacobMsg = () => {
-          const index = Math.floor(Math.random() * jacobMessages.length);
-          setJacobMsg(jacobMessages[index]);
-          setShowJacobMsg(true);
+          setJacfQueue((prev) => {
+            const { idx, rest } = nextFromQueue(prev, jacobMessages.length);
+            setJacobMsg(jacobMessages[idx]);
+            setShowJacobMsg(true);
+            return rest;
+          });
         };
 
         const cards = [
-          { day: 1, track: "Justin Bieber – Ghost", fact: "Jeg er en mand af ord. Har en tendens til at ville skrive kort, men ender i en roman. Diagnose!", tanke: "L1 detox starter nu. Mindre mødelokale, mere almindelighed." },
-          { day: 2, track: "Blue – U Make Me Wanna", fact: "Jeg har en meget simpel smag. Det behøver ikke være fancy for at være godt.", tanke: "Bolo, hættetrøjer og ro slår det meste." },
-          { day: 3, track: "Ne-Yo – So Sick", fact: "Jeg kan stadig blive genert, hvis nogen holder øjenkontakt længe nok.", tanke: "Og ja… dine øjne. Wow. De får mig lidt til at føle mig som en flue mod et lys." },
-          { day: 4, track: "Usher – Nice & Slow", fact: "Jeg har en svaghed for mennesker, der er omsorgsfulde og gode ved andre. Også når ingen kigger.", tanke: "Det er en af dine bedste sider. Måske den bedste." },
-          { day: 5, track: "Nelly – Just a Dream", fact: "Jeg elsker roadtrip-tanker og dum musik i bilen mere end jeg vil indrømme.", tanke: "Hjemmesko, fastelavnsboller, bland-selv-slik og kedelig reality TV. Det er faktisk et mål." },
-          { day: 6, track: "Backstreet Boys – Shape of My Heart", fact: "Jeg er bedre til disciplin end til tålmodighed (jeg øver mig).", tanke: "Du gør mig både tryg og glad." },
-          { day: 7, track: "Drake – Passionfruit", fact: "Når jeg er presset, bliver jeg enten meget stille eller meget snakkende. Ofte nr. 2 😬", tanke: "Din humor, din ironi og din lethed. Det redder dagen." },
-          { day: 8, track: "Chris Brown – With You", fact: "Jeg kan blive alt for investeret i små interne jokes... horoskoper, copilot, osv.", tanke: "Copilot siger “hold ro” – Copilot får sin vilje i dag 🙄✅" },
-          { day: 9, track: "Kanye West – Flashing Lights", fact: "Jeg elsker ligegyldige diskussioner (landbrug, økologi, opskrifter, 90'er og 00'er musik, kongehuset) alt for meget.", tanke: "Jeg savner lidt vores “random emner”-mode." },
-          { day: 10, track: "The Weeknd – Die For You", fact: "Jeg er dårligere til at give slip end til at holde fast.", tanke: "Nogle mennesker gør bare noget ved én. Punktum." },
-          { day: 11, track: "Drake – Hold On, We’re Going Home", fact: "Jeg har det bedst, når ting får lov til at tage den tid, de tager.", tanke: "En lille hilsen fra barselsboblen. Stadig her." },
-          { day: 12, track: "Justin Bieber – Company", fact: "Jeg er kan godt lide tingene enkelt, simpelt og ærligt. Jeg foretrækker ægte samtaler.", tanke: "Det er så nemt at være sig selv sammen med dig." },
-          { day: 13, track: "The Weeknd – Earned It", fact: "Jeg vil hellere have det virkelige end glansbilledet. Hver gang.", tanke: "Jeg kan lide bare at bruge tid med dig. Snakke. Grine. Det føles ikke som et spil." },
-          { day: 14, track: "Usher – U Remind Me", fact: "Jeg glemmer ikke nemt mennesker, der betyder noget for mig.", tanke: "Bare så du ved det." },
-          { day: 15, track: "Kanye West – Good Life", fact: "“Langsomt” er ikke et nederlag. Det er en strategi.", tanke: "Horoskopet siger “mulig snarlig genforening af ildtegn”. Jeg siger: ja tak! 🙂" },
+          {
+            day: 1,
+            track: "Justin Bieber – Ghost",
+            fact: "Jeg er en mand af ord. Har en tendens til at ville skrive kort, men ender i en roman. Diagnose!",
+            tanke: "L1 detox starter nu. Mindre mødelokale, mere almindelighed.",
+          },
+          {
+            day: 2,
+            track: "Blue – U Make Me Wanna",
+            fact: "Jeg har en meget simpel smag, i mange ting. Det behøver ikke være fancy for at være godt. Tværtimod",
+            tanke: "Bolo, hættetrøjer, sutsko og tid slår det meste.",
+          },
+          {
+            day: 3,
+            track: "Ne-Yo – So Sick",
+            fact: "Jeg kan stadig blive genert, hvis nogen holder øjenkontakt længe nok.",
+            tanke:
+              "Og ja… dine øjne. Wow. De får mig lidt til at føle mig som en flue mod et lys.",
+          },
+          {
+            day: 4,
+            track: "Usher – Nice & Slow",
+            fact: "Jeg har en svaghed for mennesker, der er kærlige, omsorgsfulde og gode ved andre. Også når ingen kigger.",
+            tanke: "Det er en af dine bedste sider. Måske den bedste.",
+          },
+          {
+            day: 5,
+            track: "Nelly – Just a Dream",
+            fact: "Jeg elsker roadtrip-tanker, hotdogs og dum musik i bilen mere end jeg vil indrømme.",
+            tanke:
+              "Hjemmesko, fastelavnsboller, bland-selv-slik og kedelig reality TV. Det er faktisk et mål.",
+          },
+          {
+            day: 6,
+            track: "Backstreet Boys – Shape of My Heart",
+            fact: "Jeg er bedre til disciplin end til tålmodighed (jeg øver mig).",
+            tanke: "Du gør mig både tryg og glad.",
+          },
+          {
+            day: 7,
+            track: "Drake – Passionfruit",
+            fact: "Når jeg er presset, bliver jeg enten meget stille eller meget snakkende. Ofte nr. 2 😬",
+            tanke: "Din humor, din ironi og din lethed. Det redder dagen.",
+          },
+          {
+            day: 8,
+            track: "Chris Brown – With You",
+            fact: "Jeg kan blive alt for investeret i små interne jokes... horoskoper, copilot, osv.",
+            tanke: "Copilot siger “hold ro” – Copilot får sin vilje i dag 🙄✅",
+          },
+          {
+            day: 9,
+            track: "Kanye West – Flashing Lights",
+            fact: "Jeg elsker ligegyldige diskussioner (landbrug, økologi, opskrifter, 90'er og 00'er musik, kongehuset) alt for meget.",
+            tanke: "Jeg savner lidt vores “random emner”-mode.",
+          },
+          {
+            day: 10,
+            track: "The Weeknd – Die For You",
+            fact: "Jeg er dårligere til at give slip end til at holde fast.",
+            tanke: "Nogle mennesker gør bare noget ved én.",
+          },
+          {
+            day: 11,
+            track: "Drake – Hold On, We’re Going Home",
+            fact: "Jeg har det bedst, når ting får lov til at tage den tid, de tager.",
+            tanke: "Jeg griner stadig helt absurd, når jeg tænker på Simon, trappen og døren! LOL.",
+          },
+          {
+            day: 12,
+            track: "Justin Bieber – Company",
+            fact: "Jeg er kan godt lide tingene enkelt, simpelt og ærligt. Jeg foretrækker ægte samtaler.",
+            tanke: "Det er så nemt at være sig selv sammen med dig.",
+          },
+          {
+            day: 13,
+            track: "The Weeknd – Earned It",
+            fact: "Jeg vil hellere have det virkelige end glansbilledet. Hver gang.",
+            tanke:
+              "Jeg kan lide bare at bruge tid med dig. Snakke. Grine. Sidde. Det føles ægte, ikke som et spil.",
+          },
+          {
+            day: 14,
+            track: "Usher – U Remind Me",
+            fact: "Jeg glemmer ikke nemt mennesker, der betyder noget for mig.",
+            tanke: "Bare så du ved det.",
+          },
+          {
+            day: 15,
+            track: "Kanye West – Good Life",
+            fact: "“Langsomt” er ikke et nederlag. Det er en strategi.",
+            tanke:
+              "Horoskopet siger “mulig snarlig genforening af ildtegn”. Jeg siger: ja tak! 🙂",
+          },
         ];
 
         if (!hasEntered) {
@@ -446,16 +610,22 @@
                     JACF <span className="text-purple-500 mx-2">×</span> EMIM
                   </p>
                   <div className="flex justify-center items-center gap-8 text-6xl md:text-7xl filter drop-shadow-lg">
-                    <span className="transform hover:scale-110 transition-transform duration-300 cursor-default">🦁</span>
+                    <span className="transform hover:scale-110 transition-transform duration-300 cursor-default">
+                      🦁
+                    </span>
                     <span className="text-2xl text-purple-500/50 animate-pulse">×</span>
-                    <span className="transform hover:scale-110 transition-transform duration-300 cursor-default">🐏</span>
+                    <span className="transform hover:scale-110 transition-transform duration-300 cursor-default">
+                      🐏
+                    </span>
                   </div>
                 </div>
                 <button
                   onClick={() => setHasEntered(true)}
                   className="group relative inline-flex items-center gap-3 px-8 py-4 bg-slate-900 border border-indigo-500/50 rounded-full text-indigo-100 hover:bg-indigo-900/30 hover:border-indigo-400 hover:text-white transition-all duration-300 shadow-[0_0_20px_rgba(99,102,241,0.2)] hover:shadow-[0_0_30px_rgba(99,102,241,0.4)]"
                 >
-                  <span className="text-sm font-bold tracking-widest uppercase">Enter meeting room</span>
+                  <span className="text-sm font-bold tracking-widest uppercase">
+                    Enter meeting room
+                  </span>
                   <Icons.ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                   <div className="absolute inset-0 rounded-full bg-indigo-400/10 blur-md opacity-0 group-hover:opacity-100 transition-opacity"></div>
                 </button>
@@ -464,12 +634,12 @@
                 </div>
               </div>
 
-              <div className="absolute bottom-2 w-full left-0 overflow-hidden z-20">
+              <div className="absolute bottom-16 w-full left-0 overflow-hidden z-20">
                 <div className="animate-marquee whitespace-nowrap flex items-center gap-4 text-[10px] text-red-400/70 font-mono uppercase tracking-widest">
                   <Icons.AlertTriangle className="w-3 h-3" />
                   <span>Watch out for: Mario, Simon, Steen, Sarah, Thai lady, ...</span>
                   <span className="mx-4 text-slate-600">///</span>
-                  <span>Keep clear of L1 glass doors</span>
+                  <span>Keep clear of glass doors and stairways</span>
                   <span className="mx-4 text-slate-600">///</span>
                   <Icons.AlertTriangle className="w-3 h-3" />
                   <span>Watch out for: Mario, Simon, Steen, Sarah, Thai lady, ...</span>
@@ -484,7 +654,8 @@
             <div
               className="fixed inset-0 z-0 opacity-20 pointer-events-none"
               style={{
-                backgroundImage: "radial-gradient(circle, #ffffff 1px, transparent 1px)",
+                backgroundImage:
+                  "radial-gradient(circle, #ffffff 1px, transparent 1px)",
                 backgroundSize: "40px 40px",
               }}
             ></div>
@@ -496,11 +667,14 @@
                   onClick={() => setHasEntered(false)}
                   className="absolute top-0 left-2 p-2 flex items-center gap-2 text-[10px] font-mono text-slate-500 hover:text-red-400 transition-colors group"
                 >
-                  <Icons.LogOut className="w-3 h-3 group-hover:-translate-x-1 transition-transform" /> EXIT L1
+                  <Icons.LogOut className="w-3 h-3 group-hover:-translate-x-1 transition-transform" />
+                  EXIT L1
                 </button>
 
                 <div className="flex justify-center items-center gap-6 mb-3 text-yellow-400 animate-pulse mt-4">
-                  <span className="text-4xl filter drop-shadow-lg transform -scale-x-100">🦁</span>
+                  <span className="text-4xl filter drop-shadow-lg transform -scale-x-100">
+                    🦁
+                  </span>
                   <Icons.Fingerprint className="w-8 h-8 text-purple-400" />
                   <span className="text-4xl filter drop-shadow-lg">🐏</span>
                 </div>
@@ -522,7 +696,9 @@
                         <span className="block text-[10px] text-slate-400 font-mono tracking-widest uppercase opacity-70">
                           System Action
                         </span>
-                        <span className="block text-xs font-bold text-slate-200 group-hover:text-white">GENERATE JACF CLASSIC</span>
+                        <span className="block text-xs font-bold text-slate-200 group-hover:text-white">
+                          GENERATE JACF CLASSIC
+                        </span>
                       </div>
                     </div>
                     <div className="text-slate-500 group-hover:text-purple-300">→</div>
@@ -540,7 +716,9 @@
                         <span className="block text-[10px] text-slate-400 font-mono tracking-widest uppercase opacity-70">
                           Astro Data
                         </span>
-                        <span className="block text-xs font-bold text-slate-200 group-hover:text-white">DAILY HOROSCOPE</span>
+                        <span className="block text-xs font-bold text-slate-200 group-hover:text-white">
+                          DAILY HOROSCOPE
+                        </span>
                       </div>
                     </div>
                     <div className="text-slate-500 group-hover:text-yellow-300">→</div>
@@ -600,7 +778,10 @@
 
               {showHoroscope && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/95 backdrop-blur-md animate-in fade-in duration-300">
-                  <div className="absolute inset-0" onClick={() => setShowHoroscope(false)}></div>
+                  <div
+                    className="absolute inset-0"
+                    onClick={() => setShowHoroscope(false)}
+                  ></div>
                   <div className="relative w-full max-w-sm bg-slate-900 border border-yellow-500/30 rounded-2xl p-8 text-center shadow-[0_0_50px_rgba(253,224,71,0.1)] transform animate-in slide-in-from-bottom-4 zoom-in-95 duration-300">
                     <div className="mb-4 flex justify-center">
                       <Icons.Stars className="w-12 h-12 text-yellow-400 animate-pulse" />
@@ -609,7 +790,9 @@
                       ARIES DAILY
                     </h3>
                     <div className="w-12 h-0.5 bg-indigo-500 mx-auto mb-6"></div>
-                    <p className="text-slate-200 italic leading-relaxed text-lg mb-8">"{dailyHoroscope}"</p>
+                    <p className="text-slate-200 italic leading-relaxed text-lg mb-8">
+                      "{dailyHoroscope}"
+                    </p>
                     <button
                       onClick={() => setShowHoroscope(false)}
                       className="px-6 py-2 bg-slate-800 hover:bg-slate-700 rounded-full text-xs tracking-widest text-slate-400 transition-colors"
@@ -622,19 +805,28 @@
 
               {showJacobMsg && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/95 backdrop-blur-md animate-in fade-in duration-300">
-                  <div className="absolute inset-0" onClick={() => setShowJacobMsg(false)}></div>
+                  <div
+                    className="absolute inset-0"
+                    onClick={() => setShowJacobMsg(false)}
+                  ></div>
                   <div className="relative w-full max-w-sm bg-slate-900 border border-purple-500/30 rounded-2xl p-6 text-left shadow-[0_0_50px_rgba(168,85,247,0.15)] transform animate-in slide-in-from-bottom-4 zoom-in-95 duration-300">
                     <div className="flex items-center gap-3 border-b border-purple-500/20 pb-4 mb-4">
                       <div className="w-10 h-10 bg-purple-500/20 rounded-full flex items-center justify-center border border-purple-500/40">
                         <span className="text-xl">🦁</span>
                       </div>
                       <div>
-                        <h3 className="text-sm font-bold text-purple-200">JACF [Lion]</h3>
-                        <p className="text-[10px] text-slate-400 font-mono">STATUS: OVERTHINKING</p>
+                        <h3 className="text-sm font-bold text-purple-200">
+                          JACF [Lion]
+                        </h3>
+                        <p className="text-[10px] text-slate-400 font-mono">
+                          STATUS: OVERTHINKING
+                        </p>
                       </div>
                     </div>
                     <div className="bg-slate-950/50 p-4 rounded-xl border border-slate-700/50 mb-6 max-h-[60vh] overflow-y-auto">
-                      <p className="text-slate-200 leading-relaxed whitespace-pre-wrap font-sans text-sm">{jacobMsg}</p>
+                      <p className="text-slate-200 leading-relaxed whitespace-pre-wrap font-sans text-sm">
+                        {jacobMsg}
+                      </p>
                     </div>
                     <div className="text-center">
                       <button
@@ -651,29 +843,48 @@
               {activeCard && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/95 backdrop-blur-md animate-in fade-in duration-200">
                   <div className="absolute inset-0" onClick={closeCard}></div>
-                  <div className="relative w-full max-w-sm aspect-[3/4] perspective-1000 cursor-pointer group" onClick={handleFlip}>
-                    <div className={`relative w-full h-full transition-all duration-700 transform-style-3d ${isFlipped ? "rotate-y-180" : ""}`}>
+                  <div
+                    className="relative w-full max-w-sm aspect-[3/4] perspective-1000 cursor-pointer group"
+                    onClick={handleFlip}
+                  >
+                    <div
+                      className={`relative w-full h-full transition-all duration-700 transform-style-3d ${
+                        isFlipped ? "rotate-y-180" : ""
+                      }`}
+                    >
                       <div className="absolute w-full h-full backface-hidden bg-gradient-to-br from-slate-800 to-slate-900 border-2 border-slate-600 rounded-2xl flex flex-col items-center justify-center shadow-2xl overflow-hidden">
                         <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-20"></div>
-                        <div className={`flex flex-col items-center justify-center w-full h-full transition-opacity duration-300 ${isFlipped ? "opacity-0" : "opacity-100"}`}>
-                          <span className="text-8xl font-bold text-slate-700/50 font-serif z-10">{activeCard.day}</span>
+                        <div
+                          className={`flex flex-col items-center justify-center w-full h-full transition-opacity duration-300 ${
+                            isFlipped ? "opacity-0" : "opacity-100"
+                          }`}
+                        >
+                          <span className="text-8xl font-bold text-slate-700/50 font-serif z-10">
+                            {activeCard.day}
+                          </span>
 
                           {!readCards.includes(activeCard.day) ? (
                             <div className="mt-8 px-4 py-2 bg-slate-800 rounded-full border border-slate-700 flex items-center gap-2 z-10">
                               <Icons.Fingerprint className="w-4 h-4 text-yellow-500 animate-pulse" />
-                              <span className="text-xs text-slate-300 font-mono tracking-wider uppercase">Tap to Decrypt</span>
+                              <span className="text-xs text-slate-300 font-mono tracking-wider uppercase">
+                                Tap to Decrypt
+                              </span>
                             </div>
                           ) : (
                             <div className="mt-8 px-4 py-2 bg-slate-800/50 rounded-full border border-slate-700/30 flex items-center gap-2 z-10 opacity-70">
                               <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-                              <span className="text-xs text-slate-400 font-mono tracking-wider uppercase">Log Unlocked</span>
+                              <span className="text-xs text-slate-400 font-mono tracking-wider uppercase">
+                                Log Unlocked
+                              </span>
                             </div>
                           )}
                         </div>
 
                         <button
                           onClick={closeCard}
-                          className={`absolute top-4 right-4 p-2 bg-slate-800/80 rounded-full text-slate-400 hover:text-white z-20 transition-opacity duration-300 ${isFlipped ? "opacity-0" : "opacity-100"}`}
+                          className={`absolute top-4 right-4 p-2 bg-slate-800/80 rounded-full text-slate-400 hover:text-white z-20 transition-opacity duration-300 ${
+                            isFlipped ? "opacity-0" : "opacity-100"
+                          }`}
                         >
                           <Icons.X className="w-6 h-6" />
                         </button>
@@ -688,9 +899,14 @@
                             <h2 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-indigo-300 to-white">
                               CONF_{activeCard.day.toString().padStart(2, "0")}
                             </h2>
-                            <span className="text-[10px] text-green-500 font-mono tracking-widest">● DECRYPTED</span>
+                            <span className="text-[10px] text-green-500 font-mono tracking-widest">
+                              ● DECRYPTED
+                            </span>
                           </div>
-                          <button onClick={closeCard} className="p-1 bg-slate-800/50 rounded-full text-slate-400 hover:text-white">
+                          <button
+                            onClick={closeCard}
+                            className="p-1 bg-slate-800/50 rounded-full text-slate-400 hover:text-white"
+                          >
                             <Icons.X className="w-5 h-5" />
                           </button>
                         </div>
@@ -700,8 +916,12 @@
                             <div className="flex items-center gap-2 text-indigo-300 mb-2 font-bold uppercase tracking-wider text-[10px]">
                               <Icons.Music className="w-3 h-3" /> Audio Track
                             </div>
-                            <div className="text-lg text-white font-medium leading-tight">{activeCard.track.split("–")[0]}</div>
-                            <div className="text-sm text-slate-400 mt-1">{activeCard.track.split("–")[1]}</div>
+                            <div className="text-lg text-white font-medium leading-tight">
+                              {activeCard.track.split("–")[0]}
+                            </div>
+                            <div className="text-sm text-slate-400 mt-1">
+                              {activeCard.track.split("–")[1]}
+                            </div>
                           </div>
 
                           <div>
@@ -717,12 +937,16 @@
                             <div className="flex items-center gap-2 text-yellow-200 mb-2 font-bold uppercase tracking-wider text-[10px]">
                               <Icons.Heart className="w-3 h-3" /> Message
                             </div>
-                            <div className="text-base text-white font-light leading-relaxed">{activeCard.tanke}</div>
+                            <div className="text-base text-white font-light leading-relaxed">
+                              {activeCard.tanke}
+                            </div>
                           </div>
                         </div>
 
                         <div className="mt-4 pt-2 text-center z-10 border-t border-white/5">
-                          <p className="text-[8px] text-slate-700 font-mono uppercase tracking-[0.2em]">End of Confession</p>
+                          <p className="text-[8px] text-slate-700 font-mono uppercase tracking-[0.2em]">
+                            End of Confession
+                          </p>
                         </div>
                       </div>
                     </div>
@@ -756,3 +980,4 @@
     </script>
   </body>
 </html>
+```
